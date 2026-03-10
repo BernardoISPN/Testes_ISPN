@@ -159,13 +159,18 @@ df["label_projeto"] = (
 
 df = df.sort_values(["ranking_num", "tipo"])
 
+if "mostrar_pequenos" not in st.session_state:
+    st.session_state["mostrar_pequenos"] = True
+
+if "mostrar_consolidacao" not in st.session_state:
+    st.session_state["mostrar_consolidacao"] = True
+
 with st.sidebar.form("filtros_form", border=False):
     
     st.divider()
     
     ver_estados = st.checkbox(
         "Ver estados (pode aumentar o tempo de carregamento da página)",
-        value=False,
         key="ver_estados"
     )
     
@@ -178,13 +183,11 @@ with st.sidebar.form("filtros_form", border=False):
     col1, col2 = st.columns(2)
     mostrar_pequenos = col1.checkbox(
         "Projetos Pequenos",
-        value=True,
         key="mostrar_pequenos"
     )
     
     mostrar_consolidacao = col2.checkbox(
         "Projetos Consolidação",
-        value=True,
         key="mostrar_consolidacao"
     )
 
