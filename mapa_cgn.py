@@ -63,9 +63,29 @@ st.sidebar.write("")
 tipo_visualizacao = st.sidebar.radio(
     "Selecione a origem dos votos:",
     ["CT", "CGN"],
-    horizontal=True
+    horizontal=True,
+    key="tipo_visualizacao"
 )
 
+# Detecta mudança CT/CGN
+if "tipo_visualizacao_anterior" not in st.session_state:
+    st.session_state.tipo_visualizacao_anterior = tipo_visualizacao
+
+if tipo_visualizacao != st.session_state.tipo_visualizacao_anterior:
+
+    # limpa checkboxes dos projetos
+    for k in list(st.session_state.keys()):
+        if k.startswith("peq_") or k.startswith("cons_"):
+            del st.session_state[k]
+
+    # reset filtros principais
+    st.session_state["ver_estados"] = False
+    st.session_state["mostrar_pequenos"] = True
+    st.session_state["mostrar_consolidacao"] = True
+
+    st.session_state.tipo_visualizacao_anterior = tipo_visualizacao
+    st.rerun()
+    
 if tipo_visualizacao == "CT":
     st.subheader(f"Projetos que receberam votos da CT - Edital 45")
 else:
@@ -143,7 +163,11 @@ with st.sidebar.form("filtros_form", border=False):
     
     st.divider()
     
-    ver_estados = st.checkbox("Ver estados (pode aumentar o tempo de carregamento da página)", value=False)
+    ver_estados = st.checkbox(
+        "Ver estados (pode aumentar o tempo de carregamento da página)",
+        value=False,
+        key="ver_estados"
+    )
     
     st.divider()
 
@@ -152,8 +176,17 @@ with st.sidebar.form("filtros_form", border=False):
     # ======================
     
     col1, col2 = st.columns(2)
-    mostrar_pequenos = col1.checkbox("Projetos Pequenos", True)
-    mostrar_consolidacao = col2.checkbox("Projetos Consolidação", True)
+    mostrar_pequenos = col1.checkbox(
+        "Projetos Pequenos",
+        value=True,
+        key="mostrar_pequenos"
+    )
+    
+    mostrar_consolidacao = col2.checkbox(
+        "Projetos Consolidação",
+        value=True,
+        key="mostrar_consolidacao"
+    )
 
     st.divider()
 
@@ -216,30 +249,35 @@ if aplicar_filtros:
 # ==============================
 # GEO
 # ==============================
-@st.cache_data
+@st.cache_resource
 def carregar_geo():
-    municipios = geobr.read_municipality(year=2020, simplified=True)
-    biomas = geobr.read_biomes(year=2019, simplified=True)
-    #estados = geobr.read_state(year=2020, simplified=True)
 
-    # estados_desejados = [
-    #     "Mato Grosso","Mato Grosso Do Sul","Distrito Federal",
-    #     "Goiás","Tocantins","Maranhão","Ceará","Piauí","Bahia",
-    #     "Pernambuco","Rio Grande Do Norte","Paraíba","Alagoas",
-    #     "Sergipe","Minas Gerais"
-    # ]
+    municipios = geobr.read_municipality(
+        year=2020,
+        simplified=True
+    )
 
-    # estados = estados[estados["name_state"].isin(estados_desejados)]
-    # estados = estados.to_crs(epsg=4326)
+    estados_desejados = [
+        "GO","TO","MA","CE","PI","BA","PE","RN","PB",
+        "AL","SE","MG","MT","MS","DF"
+    ]
 
-    cerrado = biomas[biomas["name_biome"] == "Cerrado"].to_crs(epsg=4326)
-    caatinga = biomas[biomas["name_biome"] == "Caatinga"].to_crs(epsg=4326)
+    municipios = municipios[
+        municipios["abbrev_state"].isin(estados_desejados)
+    ]
+
+    biomas = geobr.read_biomes(year=2019)
+    biomas = biomas[biomas["name_biome"].isin(["Cerrado", "Caatinga"])]
+    biomas = biomas.to_crs(epsg=4326)
+
+    cerrado = biomas[biomas["name_biome"] == "Cerrado"]
+    caatinga = biomas[biomas["name_biome"] == "Caatinga"]
 
     return municipios, cerrado, caatinga
 
 municipios, cerrado, caatinga = carregar_geo()
 
-@st.cache_data
+@st.cache_resource
 def carregar_estados():
     estados = geobr.read_state(year=2020, simplified=True)
 
@@ -258,7 +296,13 @@ def carregar_estados():
 @st.cache_data(show_spinner=False)
 def preparar_mapa(df_filtrado):
 
-    df_geo = municipios.merge(
+    codigos_municipios = df_filtrado["Município Principal"].unique()
+
+    municipios_filtrados = municipios[
+        municipios["code_muni"].isin(codigos_municipios)
+    ]
+
+    df_geo = municipios_filtrados.merge(
         df_filtrado,
         left_on="code_muni",
         right_on="Município Principal",
