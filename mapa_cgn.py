@@ -57,18 +57,36 @@ if not st.session_state.authenticated:
 
 st.logo("https://fundoecos.org.br/wp-content/uploads/2025/05/Logo-Fundo-Ecos-PNG-sem-fundo-sem-margem.png", size="large")
 
-st.subheader("Projetos que receberam votos da CT - Edital 45")
+st.sidebar.markdown("## Filtros")
+st.sidebar.write("")
+
+tipo_visualizacao = st.sidebar.radio(
+    "Selecione a origem dos votos:",
+    ["CT", "CGN"],
+    horizontal=True
+)
+
+if tipo_visualizacao == "CT":
+    st.subheader(f"Projetos que receberam votos da CT - Edital 45")
+else:
+    st.subheader(f"Projetos que receberam votos do CGN - Edital 45")
 
 st.write("")
 st.write("")
 st.write("")
+
 
 # ==============================
 # CONFIGURAÇÕES
 # ==============================
 sheet_id = st.secrets["google"]["sheet_id"]
-gid_pequenos = "0"
-gid_consolidacao = "1670469352"
+if tipo_visualizacao == "CT":
+    gid_pequenos = st.secrets["google"]["gid_pequenos_ct"]
+    gid_consolidacao = st.secrets["google"]["gid_consolidacao_ct"]
+
+else:  # CGN
+    gid_pequenos = st.secrets["google"]["gid_pequenos_cgn"]
+    gid_consolidacao = st.secrets["google"]["gid_consolidacao_cgn"]
 
 url_pequenos = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid_pequenos}"
 url_consolidacao = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid_consolidacao}"
@@ -77,7 +95,7 @@ url_consolidacao = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?fo
 # CARREGAR PLANILHAS
 # ==============================
 @st.cache_data
-def carregar_dados():
+def carregar_dados(url_pequenos, url_consolidacao):
     df_peq = pd.read_csv(url_pequenos)
     df_cons = pd.read_csv(url_consolidacao)
 
@@ -103,7 +121,7 @@ def carregar_dados():
 
     return df
 
-df = carregar_dados()
+df = carregar_dados(url_pequenos, url_consolidacao)
 
 
 # ==============================
@@ -122,9 +140,8 @@ df["label_projeto"] = (
 df = df.sort_values(["ranking_num", "tipo"])
 
 with st.sidebar.form("filtros_form", border=False):
-
-    st.markdown("## Filtros")
-    st.write("")
+    
+    st.divider()
     
     ver_estados = st.checkbox("Ver estados (pode aumentar o tempo de carregamento da página)", value=False)
     
